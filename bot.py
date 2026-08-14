@@ -23,7 +23,7 @@ def load_seen():
     try:
         with open(SEEN_FILE, "r") as f:
             return set(json.load(f))
-    except:
+    except Exception:
         return set()
 
 
@@ -33,7 +33,7 @@ def save_seen(ids):
 
 
 def send_telegram(msg):
-    requests.post(
+    r = requests.post(
         f"https://api.telegram.org/bot{TOKEN}/sendMessage",
         data={
             "chat_id": CHAT_ID,
@@ -42,19 +42,44 @@ def send_telegram(msg):
         }
     )
 
+    print("STATUS TELEGRAM:", r.status_code)
+    print("RESPOSTA TELEGRAM:", r.text)
+
+
+print("================================")
+print("BOT INICIADO")
+print("================================")
 
 seen = load_seen()
 new_seen = set(seen)
 
+print("ANUNCIOS JA VISTOS:", len(seen))
+
 novos = []
 
 for url in URLS:
+
+    print("\nPROCESSANDO:")
+    print(url)
+
     try:
-        html = requests.get(url, headers=HEADERS, timeout=30).text
+        html = requests.get(
+            url,
+            headers=HEADERS,
+            timeout=30
+        ).text
+
+        print("HTML RECEBIDO:", len(html), "caracteres")
 
         soup = BeautifulSoup(html, "html.parser")
 
-        for link in soup.find_all("a", href=True):
+        links = soup.find_all("a", href=True)
+
+        print("LINKS ENCONTRADOS:", len(links))
+
+        encontrados_nessa_url = 0
+
+        for link in links:
 
             href = link["href"]
 
@@ -66,12 +91,20 @@ for url in URLS:
 
             anuncio_id = href
 
+            encontrados_nessa_url += 1
+
             if anuncio_id not in seen:
                 novos.append(href)
                 new_seen.add(anuncio_id)
 
+        print("ANUNCIOS VALIDOS:", encontrados_nessa_url)
+
     except Exception as e:
-        print(e)
+        print("ERRO:", str(e))
+
+print("\n================================")
+print("NOVOS ENCONTRADOS:", len(novos))
+print("================================")
 
 if novos:
 
@@ -82,4 +115,9 @@ if novos:
 
     send_telegram(mensagem)
 
+else:
+    print("NENHUM IMOVEL NOVO ENCONTRADO")
+
 save_seen(new_seen)
+
+print("FIM DO PROCESSAMENTO")
